@@ -49,6 +49,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -126,6 +127,7 @@ type LogWriter interface {
 type Filter struct {
 	Level Level
 	LogWriter
+	PackageFilter *regexp.Regexp
 }
 
 // A Logger represents a collection of Filters through which log messages are
@@ -147,7 +149,7 @@ func NewLogger() Logger {
 func NewConsoleLogger(lvl Level) Logger {
 	os.Stderr.WriteString("warning: use of deprecated NewConsoleLogger\n")
 	return Logger{
-		"stdout": &Filter{lvl, NewConsoleLogWriter()},
+		"stdout": &Filter{lvl, NewConsoleLogWriter(), nil},
 	}
 }
 
@@ -155,7 +157,7 @@ func NewConsoleLogger(lvl Level) Logger {
 // or above lvl to standard output.
 func NewDefaultLogger(lvl Level) Logger {
 	return Logger{
-		"stdout": &Filter{lvl, NewConsoleLogWriter()},
+		"stdout": &Filter{lvl, NewConsoleLogWriter(), nil},
 	}
 }
 
@@ -175,7 +177,7 @@ func (log Logger) Close() {
 // higher.  This function should not be called from multiple goroutines.
 // Returns the logger for chaining.
 func (log Logger) AddFilter(name string, lvl Level, writer LogWriter) Logger {
-	log[name] = &Filter{lvl, writer}
+	log[name] = &Filter{lvl, writer, nil}
 	return log
 }
 
@@ -220,6 +222,9 @@ func (log Logger) intLogf(lvl Level, format string, args ...interface{}) {
 		if lvl < filt.Level {
 			continue
 		}
+		if filt.PackageFilter != nil && filt.PackageFilter.MatchString(src) == false {
+			continue
+		}
 		filt.LogWrite(rec)
 	}
 }
@@ -259,6 +264,9 @@ func (log Logger) intLogc(lvl Level, closure func() string) {
 		if lvl < filt.Level {
 			continue
 		}
+		if filt.PackageFilter != nil && filt.PackageFilter.MatchString(src) == false {
+			continue
+		}
 		filt.LogWrite(rec)
 	}
 }
@@ -289,6 +297,9 @@ func (log Logger) Log(lvl Level, source, message string) {
 	// Dispatch the logs
 	for _, filt := range log {
 		if lvl < filt.Level {
+			continue
+		}
+		if filt.PackageFilter != nil && filt.PackageFilter.MatchString(source) == false {
 			continue
 		}
 		filt.LogWrite(rec)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -21,6 +22,7 @@ type xmlFilter struct {
 	Tag      string        `xml:"tag"`
 	Level    string        `xml:"level"`
 	Type     string        `xml:"type"`
+	Package  string        `xml:"package"`
 	Property []xmlProperty `xml:"property"`
 }
 
@@ -54,6 +56,7 @@ func (log Logger) LoadConfiguration(filename string) {
 	for _, xmlfilt := range xc.Filter {
 		var filt LogWriter
 		var lvl Level
+		var packageFilter *regexp.Regexp
 		bad, good, enabled := false, true, false
 
 		// Check required children
@@ -74,6 +77,16 @@ func (log Logger) LoadConfiguration(filename string) {
 		if len(xmlfilt.Level) == 0 {
 			fmt.Fprintf(os.Stderr, "LoadConfiguration: Error: Required child <%s> for filter missing in %s\n", "level", filename)
 			bad = true
+		}
+		if len(xmlfilt.Package) == 0 {
+			packageFilter = nil
+		} else {
+			var err error
+			packageFilter, err = regexp.Compile("/" + regexp.QuoteMeta(xmlfilt.Package) + "\\.")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "LoadConfiguration: Error: package <%s> cannot be used as a package filter\n", xmlfilt.Package)
+				bad = true
+			}
 		}
 
 		switch xmlfilt.Level {
@@ -127,7 +140,7 @@ func (log Logger) LoadConfiguration(filename string) {
 			continue
 		}
 
-		log[xmlfilt.Tag] = &Filter{lvl, filt}
+		log[xmlfilt.Tag] = &Filter{lvl, filt, packageFilter}
 	}
 }
 
