@@ -9,22 +9,32 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sync"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // This log writer sends output to a socket
-type MysqlLogWriter chan *LogRecord
+type MysqlLogWriter struct {
+	r  chan *LogRecord
+	wg *sync.WaitGroup
+}
 
 // This is the MysqlLogWriter's output method
-func (w MysqlLogWriter) LogWrite(rec *LogRecord) {
-	w <- rec
+func (w *MysqlLogWriter) LogWrite(rec *LogRecord) {
+	w.r <- rec
 }
 
-func (w MysqlLogWriter) Close() {
-	close(w)
+func (w *MysqlLogWriter) Close() {
+	close(w.r)
+	w.wg.Wait()
 }
 
-func NewMysqlLogWriter(dbName, tableName, serverId string) MysqlLogWriter {
+func NewMysqlLogWriter(dbName, tableName, serverId string) *MysqlLogWriter {
 
+	if tableName == "" {
+		tableName = "EzoicMonitor.ProcessLog"
+	}
 	if serverId == "" {
 		serverId = getServerId()
 	}
@@ -35,18 +45,23 @@ func NewMysqlLogWriter(dbName, tableName, serverId string) MysqlLogWriter {
 		return nil
 	}
 
-	w := MysqlLogWriter(make(chan *LogRecord, LogBufferLength))
+	w := &MysqlLogWriter{
+		r:  make(chan *LogRecord, LogBufferLength),
+		wg: &sync.WaitGroup{},
+	}
 
+	w.wg.Add(1)
 	go func() {
-		for rec := range w {
+		for rec := range w.r {
 			// Marshall into JSON
 			_, err := db.Exec("INSERT INTO "+tableName+" (ServerId, ProcessName, LogTime, LogLevel, Source, Message) VALUES (?, ?, ?, ?, ?, ?)",
 				serverId, os.Args[0], rec.Created.Unix(), rec.Level.String(), rec.Source, rec.Message)
 			if err != nil {
 				fmt.Fprint(os.Stderr, "MysqlLogWriter(%q,%q,%q): %s", dbName, tableName, serverId, err)
-				return
+				break
 			}
 		}
+		w.wg.Done()
 	}()
 
 	return w

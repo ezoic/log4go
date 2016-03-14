@@ -125,6 +125,8 @@ func (log Logger) LoadConfiguration(filename string) {
 			filt, good = xmlToXMLLogWriter(filename, xmlfilt.Property, enabled)
 		case "socket":
 			filt, good = xmlToSocketLogWriter(filename, xmlfilt.Property, enabled)
+		case "mysql":
+			filt, good = xmlToMysqlLogWriter(filename, xmlfilt.Property, enabled)
 		default:
 			fmt.Fprintf(os.Stderr, "LoadConfiguration: Error: Could not load XML configuration in %s: unknown filter type \"%s\"\n", filename, xmlfilt.Type)
 			os.Exit(1)
@@ -307,7 +309,7 @@ func xmlToSocketLogWriter(filename string, props []xmlProperty, enabled bool) (S
 	return NewSocketLogWriter(protocol, endpoint), true
 }
 
-func xmlToMysqlLogWriter(filename string, props []xmlProperty, enabled bool) (MysqlLogWriter, bool) {
+func xmlToMysqlLogWriter(filename string, props []xmlProperty, enabled bool) (*MysqlLogWriter, bool) {
 	dbName := ""
 	tableName := "EzoicMonitor.ProcessLog"
 	serverId := ""
