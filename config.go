@@ -306,3 +306,36 @@ func xmlToSocketLogWriter(filename string, props []xmlProperty, enabled bool) (S
 
 	return NewSocketLogWriter(protocol, endpoint), true
 }
+
+func xmlToMysqlLogWriter(filename string, props []xmlProperty, enabled bool) (MysqlLogWriter, bool) {
+	dbName := ""
+	tableName := "EzoicMonitor.ProcessLog"
+	serverId := ""
+
+	// Parse properties
+	for _, prop := range props {
+		switch prop.Name {
+		case "db":
+			dbName = strings.Trim(prop.Value, " \r\n")
+		case "tablename":
+			tableName = strings.Trim(prop.Value, " \r\n")
+		case "serverid":
+			serverId = strings.Trim(prop.Value, " \r\n")
+		default:
+			fmt.Fprintf(os.Stderr, "LoadConfiguration: Warning: Unknown property \"%s\" for file filter in %s\n", prop.Name, filename)
+		}
+	}
+
+	// Check properties
+	if len(dbName) == 0 {
+		fmt.Fprintf(os.Stderr, "LoadConfiguration: Error: Required property \"%s\" for file filter missing in %s\n", "db", filename)
+		return nil, false
+	}
+
+	// If it's disabled, we're just checking syntax
+	if !enabled {
+		return nil, true
+	}
+
+	return NewMysqlLogWriter(dbName, tableName, serverId), true
+}
