@@ -16,13 +16,16 @@ type xmlProperty struct {
 	Name  string `xml:"name,attr"`
 	Value string `xml:",chardata"`
 }
+type xmlPackage struct {
+	Value string `xml:",chardata"`
+}
 
 type xmlFilter struct {
 	Enabled  string        `xml:"enabled,attr"`
 	Tag      string        `xml:"tag"`
 	Level    string        `xml:"level"`
 	Type     string        `xml:"type"`
-	Package  string        `xml:"package"`
+	Package  []xmlPackage  `xml:"package"`
 	Property []xmlProperty `xml:"property"`
 }
 
@@ -56,7 +59,7 @@ func (log Logger) LoadConfiguration(filename string) {
 	for _, xmlfilt := range xc.Filter {
 		var filt LogWriter
 		var lvl Level
-		var packageFilter *regexp.Regexp
+		var packageFilter []*regexp.Regexp
 		bad, good, enabled := false, true, false
 
 		// Check required children
@@ -81,11 +84,15 @@ func (log Logger) LoadConfiguration(filename string) {
 		if len(xmlfilt.Package) == 0 {
 			packageFilter = nil
 		} else {
-			var err error
-			packageFilter, err = regexp.Compile("/" + regexp.QuoteMeta(xmlfilt.Package) + "\\.")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "LoadConfiguration: Error: package <%s> cannot be used as a package filter\n", xmlfilt.Package)
-				bad = true
+			packageFilter = make([]*regexp.Regexp, 0, len(xmlfilt.Package))
+			for _, p := range xmlfilt.Package {
+				pf, err := regexp.Compile("/" + regexp.QuoteMeta(p.Value) + "\\.")
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "LoadConfiguration: Error: package <%s> cannot be used as a package filter\n", p.Value)
+					bad = true
+				} else {
+					packageFilter = append(packageFilter, pf)
+				}
 			}
 		}
 
