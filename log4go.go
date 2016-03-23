@@ -127,7 +127,7 @@ type LogWriter interface {
 type Filter struct {
 	Level Level
 	LogWriter
-	PackageFilter *regexp.Regexp
+	PackageFilter []*regexp.Regexp
 }
 
 // A Logger represents a collection of Filters through which log messages are
@@ -222,8 +222,17 @@ func (log Logger) intLogf(lvl Level, format string, args ...interface{}) {
 		if lvl < filt.Level {
 			continue
 		}
-		if filt.PackageFilter != nil && filt.PackageFilter.MatchString(src) == false {
-			continue
+		if filt.PackageFilter != nil && len(filt.PackageFilter) > 0 {
+			matchAny := false
+			for _, pf := range filt.PackageFilter {
+				if pf.MatchString(src) {
+					matchAny = true
+					break
+				}
+			}
+			if matchAny == false {
+				continue
+			}
 		}
 		filt.LogWrite(rec)
 	}
@@ -264,8 +273,17 @@ func (log Logger) intLogc(lvl Level, closure func() string) {
 		if lvl < filt.Level {
 			continue
 		}
-		if filt.PackageFilter != nil && filt.PackageFilter.MatchString(src) == false {
-			continue
+		if filt.PackageFilter != nil && len(filt.PackageFilter) > 0 {
+			matchAny := false
+			for _, pf := range filt.PackageFilter {
+				if pf.MatchString(src) {
+					matchAny = true
+					break
+				}
+			}
+			if matchAny == false {
+				continue
+			}
 		}
 		filt.LogWrite(rec)
 	}
@@ -299,8 +317,17 @@ func (log Logger) Log(lvl Level, source, message string) {
 		if lvl < filt.Level {
 			continue
 		}
-		if filt.PackageFilter != nil && filt.PackageFilter.MatchString(source) == false {
-			continue
+		if filt.PackageFilter != nil && len(filt.PackageFilter) > 0 {
+			matchAny := false
+			for _, pf := range filt.PackageFilter {
+				if pf.MatchString(source) {
+					matchAny = true
+					break
+				}
+			}
+			if matchAny == false {
+				continue
+			}
 		}
 		filt.LogWrite(rec)
 	}
