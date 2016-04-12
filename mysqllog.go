@@ -58,7 +58,6 @@ func NewMysqlLogWriter(dbName, tableName, serverId string) *MysqlLogWriter {
 				serverId, os.Args[0], rec.Created.Unix(), rec.Level.String(), rec.Source, rec.Message)
 			if err != nil {
 				fmt.Fprint(os.Stderr, "MysqlLogWriter(%q,%q,%q): %s", dbName, tableName, serverId, err)
-				break
 			}
 		}
 		w.wg.Done()
