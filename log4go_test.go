@@ -194,21 +194,6 @@ func TestLogger(t *testing.T) {
 		t.Fatalf("AddFilter produced invalid logger (incorrect map count)")
 	}
 
-	//func (l *Logger) Warn(format string, args ...interface{}) error {}
-	if err := l.Warn("%s %d %#v", "Warning:", 1, []int{}); err.Error() != "Warning: 1 []int{}" {
-		t.Errorf("Warn returned invalid error: %s", err)
-	}
-
-	//func (l *Logger) Error(format string, args ...interface{}) error {}
-	if err := l.Error("%s %d %#v", "Error:", 10, []string{}); err.Error() != "Error: 10 []string{}" {
-		t.Errorf("Error returned invalid error: %s", err)
-	}
-
-	//func (l *Logger) Critical(format string, args ...interface{}) error {}
-	if err := l.Critical("%s %d %#v", "Critical:", 100, []int64{}); err.Error() != "Critical: 100 []int64{}" {
-		t.Errorf("Critical returned invalid error: %s", err)
-	}
-
 	// Already tested or basically untestable
 	//func (l *Logger) Log(level int, source, message string) {}
 	//func (l *Logger) Logf(level int, format string, args ...interface{}) {}
@@ -332,9 +317,9 @@ func TestXMLConfig(t *testing.T) {
 	fmt.Fprintln(fd, "    <property name=\"filename\">test.log</property>")
 	fmt.Fprintln(fd, "    <!--")
 	fmt.Fprintln(fd, "       %T - Time (15:04:05 MST)")
-	fmt.Fprintln(fd, "       %t - Time (15:04)")
+	fmt.Fprintf(fd, "       %%s - Time (15:04)\n")
 	fmt.Fprintln(fd, "       %D - Date (2006/01/02)")
-	fmt.Fprintln(fd, "       %d - Date (01/02/06)")
+	fmt.Fprintf(fd, "       %%d - Date (01/02/06)\n")
 	fmt.Fprintln(fd, "       %L - Level (FNST, FINE, DEBG, TRAC, WARN, EROR, CRIT)")
 	fmt.Fprintln(fd, "       %S - Source")
 	fmt.Fprintln(fd, "       %M - Message")

@@ -57,7 +57,7 @@ func NewMysqlLogWriter(dbName, tableName, serverId string) *MysqlLogWriter {
 			_, err := db.Exec("INSERT INTO "+tableName+" (ServerId, ProcessName, LogTime, LogLevel, Source, Message) VALUES (?, ?, ?, ?, ?, ?)",
 				serverId, os.Args[0], rec.Created.Unix(), rec.Level.String(), rec.Source, rec.Message)
 			if err != nil {
-				fmt.Fprint(os.Stderr, "MysqlLogWriter(%q,%q,%q): %s", dbName, tableName, serverId, err)
+				fmt.Fprintf(os.Stderr, "MysqlLogWriter(%q,%q,%q): %s", dbName, tableName, serverId, err)
 			}
 		}
 		w.wg.Done()
