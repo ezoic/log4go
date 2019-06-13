@@ -18,11 +18,13 @@ type formatCacheType struct {
 	LastUpdateSeconds    int64
 	shortTime, shortDate string
 	longTime, longDate   string
+	veryLongTime         string
 }
 
 var formatCache = &formatCacheType{}
 
 // Known format codes:
+// %R - Time (15:04:05.000 MST)
 // %T - Time (15:04:05 MST)
 // %t - Time (15:04)
 // %D - Date (2006/01/02)
@@ -46,13 +48,15 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 	cache := *formatCache
 	if cache.LastUpdateSeconds != secs {
 		month, day, year := rec.Created.Month(), rec.Created.Day(), rec.Created.Year()
-		hour, minute, second := rec.Created.Hour(), rec.Created.Minute(), rec.Created.Second()
+		hour, minute, second, ns := rec.Created.Hour(), rec.Created.Minute(), rec.Created.Second(), rec.Created.Nanosecond()
+		ms := ns / 1000000
 		zone, _ := rec.Created.Zone()
 		updated := &formatCacheType{
 			LastUpdateSeconds: secs,
 			shortTime:         fmt.Sprintf("%02d:%02d", hour, minute),
 			shortDate:         fmt.Sprintf("%02d/%02d/%02d", day, month, year%100),
 			longTime:          fmt.Sprintf("%02d:%02d:%02d %s", hour, minute, second, zone),
+			veryLongTime:      fmt.Sprintf("%02d:%02d:%02d.%03d %s", hour, minute, second, ms, zone),
 			longDate:          fmt.Sprintf("%04d/%02d/%02d", year, month, day),
 		}
 		cache = *updated
@@ -66,6 +70,8 @@ func FormatLogRecord(format string, rec *LogRecord) string {
 	for i, piece := range pieces {
 		if i > 0 && len(piece) > 0 {
 			switch piece[0] {
+			case 'R':
+				out.WriteString(cache.veryLongTime)
 			case 'T':
 				out.WriteString(cache.longTime)
 			case 't':
