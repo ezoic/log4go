@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	Global Logger
+	Global *Logger
 )
 
 func init() {
@@ -262,4 +262,11 @@ func Critical(arg0 interface{}, args ...interface{}) {
 		// Build a format string so that it will be similar to Sprint
 		Global.intLogf(lvl, fmt.Sprint(first)+strings.Repeat(" %v", len(args)), args...)
 	}
+}
+
+// SetLogGroupID sets the log group id for the global logger
+// which can be added into the log message, depending on the
+// configuration for the log writer
+func SetLogGroupID(logGroupID string) {
+	Global.SetLogGroupID(logGroupID)
 }

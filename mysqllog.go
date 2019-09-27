@@ -41,7 +41,7 @@ func NewMysqlLogWriter(dbName, tableName, serverId string) *MysqlLogWriter {
 
 	db, err := sql.Open("mysql", dbName)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "NewMysqlLogWriter(%q,%q,%q): %s\n", dbName, tableName, serverId, err)
+		fmt.Fprintf(os.Stderr, "NewMysqlLogWriter(%q,%q): %s\n", tableName, serverId, err)
 		return nil
 	}
 
@@ -54,10 +54,10 @@ func NewMysqlLogWriter(dbName, tableName, serverId string) *MysqlLogWriter {
 	go func() {
 		for rec := range w.r {
 			// Marshall into JSON
-			_, err := db.Exec("INSERT INTO "+tableName+" (ServerId, ProcessName, LogTime, LogLevel, Source, Message) VALUES (?, ?, ?, ?, ?, ?)",
-				serverId, os.Args[0], rec.Created.Unix(), rec.Level.String(), rec.Source, rec.Message)
+			_, err := db.Exec("INSERT INTO "+tableName+" (ServerId, ProcessName, LogTime, LogLevel, Source, Message, LogGroupID) VALUES (?, ?, ?, ?, ?, ?, ?)",
+				serverId, os.Args[0], rec.Created.Unix(), rec.Level.String(), rec.Source, rec.Message, rec.LogGroupID)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "MysqlLogWriter(%q,%q,%q): %s", dbName, tableName, serverId, err)
+				fmt.Fprintf(os.Stderr, "MysqlLogWriter(%q,%q): %s", tableName, serverId, err)
 			}
 		}
 		w.wg.Done()

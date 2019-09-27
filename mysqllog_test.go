@@ -35,10 +35,11 @@ func Test_MysqlLogWriter(t *testing.T) {
 	rt := time.Unix(time.Now().Unix(), 0)
 
 	rec := &LogRecord{
-		Level:   DEBUG,
-		Created: rt,
-		Source:  src,
-		Message: "test message",
+		Level:      DEBUG,
+		Created:    rt,
+		Source:     src,
+		Message:    "test message",
+		LogGroupID: "test log group",
 	}
 
 	log.Println("creating log writer")
@@ -51,8 +52,8 @@ func Test_MysqlLogWriter(t *testing.T) {
 	log.Println("checking")
 
 	var dbLogTime int64
-	var dbLogLevel, dbSource, dbMessage string
-	err = db.QueryRow("SELECT LogTime, LogLevel, Source, Message FROM EzoicMonitor.ProcessLog WHERE Serverid = ?", testServerId).Scan(&dbLogTime, &dbLogLevel, &dbSource, &dbMessage)
+	var dbLogLevel, dbSource, dbMessage, dbLogGroupID string
+	err = db.QueryRow("SELECT LogTime, LogLevel, Source, Message, LogGroupID FROM EzoicMonitor.ProcessLog WHERE Serverid = ?", testServerId).Scan(&dbLogTime, &dbLogLevel, &dbSource, &dbMessage, &dbLogGroupID)
 	if err != nil {
 		t.Fatalf("no mysql records found, %v", err)
 	}
@@ -67,6 +68,7 @@ func Test_MysqlLogWriter(t *testing.T) {
 	outRec.Created = time.Unix(dbLogTime, 0)
 	outRec.Source = dbSource
 	outRec.Message = dbMessage
+	outRec.LogGroupID = dbLogGroupID
 
 	if reflect.DeepEqual(outRec, rec) == false {
 		t.Fatalf("unexpected row\n%s", pretty.CompareConfig.Compare(outRec, rec))
