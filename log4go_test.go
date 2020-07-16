@@ -174,7 +174,8 @@ func TestLogger(t *testing.T) {
 	if lw, exist := sl.filterMap["stdout"]; lw == nil || exist != true {
 		t.Fatalf("NewDefaultLogger produced invalid logger (DNE or nil)")
 	}
-	if sl.filterMap["stdout"].Level != WARNING {
+	f := iFilterableToFilter(sl.filterMap["stdout"])
+	if f.Level != WARNING {
 		t.Fatalf("NewDefaultLogger produced invalid logger (incorrect level)")
 	}
 	if len(sl.filterMap) != 1 {
@@ -187,7 +188,8 @@ func TestLogger(t *testing.T) {
 	if lw, exist := l.filterMap["stdout"]; lw == nil || exist != true {
 		t.Fatalf("AddFilter produced invalid logger (DNE or nil)")
 	}
-	if l.filterMap["stdout"].Level != DEBUG {
+	f = iFilterableToFilter(l.filterMap["stdout"])
+	if f.Level != DEBUG {
 		t.Fatalf("AddFilter produced invalid logger (incorrect level)")
 	}
 	if len(l.filterMap) != 1 {
@@ -375,34 +377,42 @@ func TestXMLConfig(t *testing.T) {
 	}
 
 	// Make sure they're the right type
-	if _, ok := log.filterMap["stdout"].LogWriter.(*ConsoleLogWriter); !ok {
-		t.Fatalf("XMLConfig: Expected stdout to be ConsoleLogWriter, found %T", log.filterMap["stdout"].LogWriter)
+	f := iFilterableToFilter(log.filterMap["stdout"])
+	if _, ok := f.LogWriter.(*ConsoleLogWriter); !ok {
+		t.Fatalf("XMLConfig: Expected stdout to be ConsoleLogWriter, found %T", f.LogWriter)
 	}
-	if _, ok := log.filterMap["file"].LogWriter.(*FileLogWriter); !ok {
-		t.Fatalf("XMLConfig: Expected file to be *FileLogWriter, found %T", log.filterMap["file"].LogWriter)
+	f = iFilterableToFilter(log.filterMap["file"])
+	if _, ok := f.LogWriter.(*FileLogWriter); !ok {
+		t.Fatalf("XMLConfig: Expected file to be *FileLogWriter, found %T", f.LogWriter)
 	}
-	if _, ok := log.filterMap["xmllog"].LogWriter.(*FileLogWriter); !ok {
-		t.Fatalf("XMLConfig: Expected xmllog to be *FileLogWriter, found %T", log.filterMap["xmllog"].LogWriter)
+	f = iFilterableToFilter(log.filterMap["xmllog"])
+	if _, ok := f.LogWriter.(*FileLogWriter); !ok {
+		t.Fatalf("XMLConfig: Expected xmllog to be *FileLogWriter, found %T", f.LogWriter)
 	}
 
 	// Make sure levels are set
-	if lvl := log.filterMap["stdout"].Level; lvl != DEBUG {
+	f = iFilterableToFilter(log.filterMap["stdout"])
+	if lvl := f.Level; lvl != DEBUG {
 		t.Errorf("XMLConfig: Expected stdout to be set to level %d, found %d", DEBUG, lvl)
 	}
-	if lvl := log.filterMap["file"].Level; lvl != FINEST {
+	f = iFilterableToFilter(log.filterMap["file"])
+	if lvl := f.Level; lvl != FINEST {
 		t.Errorf("XMLConfig: Expected file to be set to level %d, found %d", FINEST, lvl)
 	}
-	if lvl := log.filterMap["xmllog"].Level; lvl != TRACE {
+	f = iFilterableToFilter(log.filterMap["xmllog"])
+	if lvl := f.Level; lvl != TRACE {
 		t.Errorf("XMLConfig: Expected xmllog to be set to level %d, found %d", TRACE, lvl)
 	}
 
 	// Make sure the w is open and points to the right file
-	if fname := log.filterMap["file"].LogWriter.(*FileLogWriter).file.Name(); fname != "test.log" {
+	f = iFilterableToFilter(log.filterMap["file"])
+	if fname := f.LogWriter.(*FileLogWriter).file.Name(); fname != "test.log" {
 		t.Errorf("XMLConfig: Expected file to have opened %s, found %s", "test.log", fname)
 	}
 
 	// Make sure the XLW is open and points to the right file
-	if fname := log.filterMap["xmllog"].LogWriter.(*FileLogWriter).file.Name(); fname != "trace.xml" {
+	f = iFilterableToFilter(log.filterMap["xmllog"])
+	if fname := f.LogWriter.(*FileLogWriter).file.Name(); fname != "trace.xml" {
 		t.Errorf("XMLConfig: Expected xmllog to have opened %s, found %s", "trace.xml", fname)
 	}
 
@@ -513,6 +523,10 @@ func BenchmarkFileUtilNotLog(b *testing.B) {
 	}
 	b.StopTimer()
 	os.Remove("benchlog.log")
+}
+
+func iFilterableToFilter(i iFilterable) *Filter {
+	return i.(*Filter)
 }
 
 // Benchmark results (darwin amd64 6g)

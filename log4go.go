@@ -121,6 +121,12 @@ type LogWriter interface {
 }
 
 /****** Logger ******/
+// Filterable interface
+type iFilterable interface {
+	LogWriter
+	isApplicable(level Level) bool
+	GetPackageFilter() []*regexp.Regexp
+}
 
 // A Filter represents the log level below which no log records are written to
 // the associated LogWriter.
@@ -130,10 +136,35 @@ type Filter struct {
 	PackageFilter []*regexp.Regexp
 }
 
+func (f *Filter) isApplicable(level Level) bool {
+	return f.Level <= level
+}
+
+func (f *Filter) GetPackageFilter() []*regexp.Regexp {
+	return f.PackageFilter
+}
+
+type InclusiveLevelFilter struct {
+	Levels map[Level]bool
+	LogWriter
+	PackageFilter []*regexp.Regexp
+}
+
+func (f *InclusiveLevelFilter) isApplicable(level Level) bool {
+	_, ok := f.Levels[level]
+	return ok
+}
+
+func (f *InclusiveLevelFilter) GetPackageFilter() []*regexp.Regexp {
+	return f.PackageFilter
+}
+
+
+
 // A Logger represents a collection of Filters through which log messages are
 // written.
 type Logger struct {
-	filterMap  map[string]*Filter
+	filterMap  map[string]iFilterable
 	logGroupID string
 }
 
@@ -142,7 +173,7 @@ type Logger struct {
 // DEPRECATED: Use make(Logger) instead.
 func NewLogger() *Logger {
 	os.Stderr.WriteString("warning: use of deprecated NewLogger\n")
-	return &Logger{filterMap: make(map[string]*Filter)}
+	return &Logger{filterMap: make(map[string]iFilterable)}
 }
 
 // Create a new logger with a "stdout" filter configured to send log messages at
@@ -152,7 +183,7 @@ func NewLogger() *Logger {
 func NewConsoleLogger(lvl Level) *Logger {
 	os.Stderr.WriteString("warning: use of deprecated NewConsoleLogger\n")
 	return &Logger{
-		filterMap: map[string]*Filter{
+		filterMap: map[string]iFilterable{
 			"stdout": &Filter{lvl, NewConsoleLogWriter(), nil},
 		},
 	}
@@ -162,7 +193,7 @@ func NewConsoleLogger(lvl Level) *Logger {
 // or above lvl to standard output.
 func NewDefaultLogger(lvl Level) *Logger {
 	return &Logger{
-		filterMap: map[string]*Filter{
+		filterMap: map[string]iFilterable{
 			"stdout": &Filter{lvl, NewConsoleLogWriter(), nil},
 		},
 	}
@@ -188,6 +219,20 @@ func (log *Logger) AddFilter(name string, lvl Level, writer LogWriter) *Logger {
 	return log
 }
 
+// Add a new LogWriter to the Logger which will only log messages of provided levels.
+// This function should not be called from multiple goroutines.
+// Returns the logger for chaining.
+func (log *Logger) AddInclusiveLevelFilter(name string, lvls []Level, writer LogWriter) *Logger {
+	levelsMap := make(map[Level]bool, len(lvls))
+
+	for _, lvl := range lvls {
+		levelsMap[lvl] = true
+	}
+
+	log.filterMap[name] = &InclusiveLevelFilter{levelsMap, writer, nil}
+	return log
+}
+
 /******* Logging *******/
 // Send a formatted log message internally
 func (log *Logger) intLogf(lvl Level, format string, args ...interface{}) {
@@ -195,7 +240,7 @@ func (log *Logger) intLogf(lvl Level, format string, args ...interface{}) {
 
 	// Determine if any logging will be done
 	for _, filt := range log.filterMap {
-		if lvl >= filt.Level {
+		if filt.isApplicable(lvl) {
 			skip = false
 			break
 		}
@@ -227,12 +272,13 @@ func (log *Logger) intLogf(lvl Level, format string, args ...interface{}) {
 
 	// Dispatch the logs
 	for _, filt := range log.filterMap {
-		if lvl < filt.Level {
+		if !filt.isApplicable(lvl) {
 			continue
 		}
-		if filt.PackageFilter != nil && len(filt.PackageFilter) > 0 {
+
+		if pfs := filt.GetPackageFilter(); pfs != nil && len(pfs) > 0 {
 			matchAny := false
-			for _, pf := range filt.PackageFilter {
+			for _, pf := range pfs {
 				if pf.MatchString(src) {
 					matchAny = true
 					break
@@ -252,7 +298,7 @@ func (log *Logger) intLogc(lvl Level, closure func() string) {
 
 	// Determine if any logging will be done
 	for _, filt := range log.filterMap {
-		if lvl >= filt.Level {
+		if filt.isApplicable(lvl) {
 			skip = false
 			break
 		}
@@ -279,12 +325,12 @@ func (log *Logger) intLogc(lvl Level, closure func() string) {
 
 	// Dispatch the logs
 	for _, filt := range log.filterMap {
-		if lvl < filt.Level {
+		if !filt.isApplicable(lvl) {
 			continue
 		}
-		if filt.PackageFilter != nil && len(filt.PackageFilter) > 0 {
+		if pfs := filt.GetPackageFilter(); pfs != nil && len(pfs) > 0 {
 			matchAny := false
-			for _, pf := range filt.PackageFilter {
+			for _, pf := range pfs {
 				if pf.MatchString(src) {
 					matchAny = true
 					break
@@ -304,7 +350,7 @@ func (log *Logger) Log(lvl Level, source, message string) {
 
 	// Determine if any logging will be done
 	for _, filt := range log.filterMap {
-		if lvl >= filt.Level {
+		if filt.isApplicable(lvl) {
 			skip = false
 			break
 		}
@@ -324,12 +370,12 @@ func (log *Logger) Log(lvl Level, source, message string) {
 
 	// Dispatch the logs
 	for _, filt := range log.filterMap {
-		if lvl < filt.Level {
+		if !filt.isApplicable(lvl) {
 			continue
 		}
-		if filt.PackageFilter != nil && len(filt.PackageFilter) > 0 {
+		if pfs := filt.GetPackageFilter(); pfs != nil && len(pfs) > 0 {
 			matchAny := false
-			for _, pf := range filt.PackageFilter {
+			for _, pf := range pfs {
 				if pf.MatchString(source) {
 					matchAny = true
 					break
